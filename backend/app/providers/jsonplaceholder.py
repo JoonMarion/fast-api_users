@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import random
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -17,6 +18,8 @@ RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 
 Sleep = Callable[[float], Awaitable[None]]
 Jitter = Callable[[float, float], float]
+
+logger = logging.getLogger(__name__)
 
 
 class JsonPlaceholderUserProvider:
@@ -48,12 +51,12 @@ class JsonPlaceholderUserProvider:
                 response = await self._client.get(f"{self._base_url}/users/{user_id}")
             except httpx.TimeoutException as exc:
                 if attempt < self._max_retries:
-                    await self._wait_before_retry(attempt)
+                    await self._wait_before_retry(user_id, attempt, "timeout")
                     continue
                 raise ProviderTimeout(f"Provider timed out for user {user_id}") from exc
             except httpx.RequestError as exc:
                 if attempt < self._max_retries:
-                    await self._wait_before_retry(attempt)
+                    await self._wait_before_retry(user_id, attempt, "request_error")
                     continue
                 raise ProviderError(
                     f"Provider request failed for user {user_id}"
@@ -66,7 +69,12 @@ class JsonPlaceholderUserProvider:
                 response.status_code in RETRYABLE_STATUS_CODES
                 and attempt < self._max_retries
             ):
-                await self._wait_before_retry(attempt, response)
+                await self._wait_before_retry(
+                    user_id,
+                    attempt,
+                    f"http_{response.status_code}",
+                    response,
+                )
                 continue
 
             try:
@@ -94,16 +102,32 @@ class JsonPlaceholderUserProvider:
 
     async def _wait_before_retry(
         self,
+        user_id: int,
         attempt: int,
+        reason: str,
         response: httpx.Response | None = None,
     ) -> None:
         retry_after = _retry_after_seconds(response)
         if retry_after is not None:
-            await self._sleep(retry_after)
-            return
+            delay = retry_after
+        else:
+            backoff = self._backoff_seconds * (2**attempt)
+            delay = backoff + self._jitter(0, backoff)
 
-        backoff = self._backoff_seconds * (2**attempt)
-        await self._sleep(backoff + self._jitter(0, backoff))
+        logger.warning(
+            "Retrying provider request",
+            extra={
+                "event": "provider_retry",
+                "user_id": user_id,
+                "attempt": attempt + 2,
+                "max_attempts": self._max_retries + 1,
+                "delay_seconds": round(delay, 3),
+                "retry_reason": reason,
+                "retry_after_used": retry_after is not None,
+                "status_code": response.status_code if response is not None else None,
+            },
+        )
+        await self._sleep(delay)
 
 
 def _retry_after_seconds(response: httpx.Response | None) -> float | None:

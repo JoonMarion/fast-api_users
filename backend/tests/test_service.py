@@ -39,6 +39,23 @@ async def test_service_limits_concurrency() -> None:
     assert [user.id for user in result.users] == [1, 2, 3, 4]
 
 
+async def test_service_logs_fetch_summary(caplog: pytest.LogCaptureFixture) -> None:
+    provider = FakeUserProvider({2: RuntimeError("unexpected failure")})
+    service = UserService(provider, max_concurrency=2)
+
+    with caplog.at_level(logging.INFO, logger="app.services.user_service"):
+        await service.fetch_users([1, 2, 3])
+
+    summary = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "users_fetch_completed"
+    )
+    assert summary.requested_count == 3
+    assert summary.succeeded_count == 2
+    assert summary.failed_count == 1
+
+
 async def test_unexpected_error_is_logged_and_mapped_to_provider_error(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -51,4 +68,9 @@ async def test_unexpected_error_is_logged_and_mapped_to_provider_error(
     assert [user.id for user in result.users] == [1, 3]
     assert result.failed == [2]
     assert result.errors[0].reason == "provider_error"
-    assert "Unexpected error while fetching user 2" in caplog.text
+    error_record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "unexpected_provider_error"
+    )
+    assert error_record.user_id == 2

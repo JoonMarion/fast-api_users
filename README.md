@@ -261,6 +261,8 @@ Os testes usam provider fake e `httpx.MockTransport`; não acessam a rede real.
 - Um único `httpx.AsyncClient` é criado e fechado pelo lifespan do FastAPI.
 - O provider repete até duas vezes falhas transitórias, usando backoff exponencial com
   jitter e respeitando `Retry-After` em respostas `429`.
+- Os eventos da aplicação são escritos como JSON pela biblioteca padrão, incluindo
+  contexto de retries, resultado das consultas e exceções inesperadas.
 - O service usa `asyncio.gather` e um semáforo por request; uma falha não cancela as
   demais consultas e a ordem de entrada é preservada.
 - Pydantic concentra validação, deduplicação e o contrato público mínimo de usuário.
@@ -279,8 +281,9 @@ manualmente antes de serem incorporadas ao projeto.
 
 A aplicação depende da disponibilidade do provider, espera todas as consultas antes de
 responder e limita cada request a 100 posições. Não possui autenticação, persistência,
-cache, circuit breaker, processamento em background ou observabilidade avançada. O retry
-é limitado a duas novas tentativas por consulta e não substitui um circuit breaker.
+cache, circuit breaker ou processamento em background. Também não possui métricas,
+tracing ou centralização dos logs estruturados. O retry é limitado a duas novas
+tentativas por consulta e não substitui um circuit breaker.
 O Docker Compose fornecido é voltado apenas à execução local; não há configuração de
 deploy.
 
@@ -299,5 +302,5 @@ Esta seria uma evolução de arquitetura, não uma ampliação direta do limite 
 5. Para trabalhos longos, usaria fila e workers: a API retornaria um `job_id`, com
    consulta de status e, se necessário, atualização por SSE ou webhook.
 6. Entregaria resultados por paginação ou streaming para evitar respostas muito grandes.
-7. Adicionaria métricas de latência, erro, fila e cache, além de logs estruturados com
-   correlação por request e job.
+7. Adicionaria métricas de latência, erro, fila e cache e centralizaria os logs
+   estruturados, com correlação por request e job.

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -7,8 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.config import Settings, load_settings
+from app.logging_config import configure_logging
 from app.providers.jsonplaceholder import JsonPlaceholderUserProvider
 from app.services.user_service import UserService
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -16,6 +20,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        configure_logging()
         timeout = httpx.Timeout(app_settings.provider_timeout_seconds)
         async with httpx.AsyncClient(timeout=timeout) as client:
             provider = JsonPlaceholderUserProvider(
@@ -26,7 +31,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 provider=provider,
                 max_concurrency=app_settings.max_concurrency,
             )
-            yield
+            logger.info(
+                "Application resources initialized",
+                extra={
+                    "event": "application_started",
+                    "max_concurrency": app_settings.max_concurrency,
+                },
+            )
+            try:
+                yield
+            finally:
+                logger.info(
+                    "Application resources released",
+                    extra={"event": "application_stopped"},
+                )
 
     application = FastAPI(lifespan=lifespan)
     application.add_middleware(

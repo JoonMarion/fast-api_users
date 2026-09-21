@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Awaitable, Callable
 
 import httpx
@@ -105,7 +106,9 @@ async def test_provider_maps_transport_errors(
         await get_user_with_transport(httpx.MockTransport(handler))
 
 
-async def test_provider_retries_429_using_retry_after() -> None:
+async def test_provider_retries_429_using_retry_after(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     attempts = 0
     delays: list[float] = []
 
@@ -119,15 +122,27 @@ async def test_provider_retries_429_using_retry_after() -> None:
     async def record_sleep(delay: float) -> None:
         delays.append(delay)
 
-    user = await get_user_with_transport(
-        httpx.MockTransport(handler),
-        max_retries=2,
-        sleep=record_sleep,
-    )
+    with caplog.at_level(logging.WARNING, logger="app.providers.jsonplaceholder"):
+        user = await get_user_with_transport(
+            httpx.MockTransport(handler),
+            max_retries=2,
+            sleep=record_sleep,
+        )
 
     assert user == User(id=1, name="User One")
     assert attempts == 2
     assert delays == [2.0]
+    retry_record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "provider_retry"
+    )
+    assert retry_record.user_id == 1
+    assert retry_record.attempt == 2
+    assert retry_record.max_attempts == 3
+    assert retry_record.delay_seconds == 2.0
+    assert retry_record.retry_reason == "http_429"
+    assert retry_record.retry_after_used is True
 
 
 async def test_provider_retries_transient_http_errors_with_backoff_and_jitter() -> None:

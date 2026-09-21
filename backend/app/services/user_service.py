@@ -29,11 +29,21 @@ class UserService:
         users = [result for result in results if isinstance(result, User)]
         errors = [result for result in results if isinstance(result, UserFetchError)]
 
-        return UserFetchResponse(
+        response = UserFetchResponse(
             users=users,
             failed=[error.id for error in errors],
             errors=errors,
         )
+        logger.info(
+            "User fetch completed",
+            extra={
+                "event": "users_fetch_completed",
+                "requested_count": len(user_ids),
+                "succeeded_count": len(users),
+                "failed_count": len(errors),
+            },
+        )
+        return response
 
     async def _fetch_user(
         self, user_id: int, semaphore: asyncio.Semaphore
@@ -48,5 +58,8 @@ class UserService:
             except ProviderError:
                 return UserFetchError(id=user_id, reason="provider_error")
             except Exception:
-                logger.exception("Unexpected error while fetching user %s", user_id)
+                logger.exception(
+                    "Unexpected error while fetching user",
+                    extra={"event": "unexpected_provider_error", "user_id": user_id},
+                )
                 return UserFetchError(id=user_id, reason="provider_error")

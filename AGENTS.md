@@ -160,7 +160,7 @@ Implementar em etapas pequenas, seguindo esta ordem de prioridade:
    e execução local dos dois serviços.
 3. [x] Retry com backoff + jitter e tratamento de `429`/`Retry-After`, exclusivamente
    dentro do provider.
-4. [ ] Logging estruturado, mantendo a solução simples e sem adicionar plataforma de
+4. [x] Logging estruturado, mantendo a solução simples e sem adicionar plataforma de
    observabilidade externa.
 5. [ ] CI simples executando Ruff, pytest e o build do frontend.
 
