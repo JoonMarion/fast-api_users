@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+node_modules/
+dist/
+
+# Local environment files; keep each .env.example tracked.
+.env
+.env.local
+
+.DS_Store
+Thumbs.db
