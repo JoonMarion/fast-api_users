@@ -2,9 +2,9 @@ import asyncio
 import logging
 
 import pytest
-
 from app.schemas import User
 from app.services.user_service import UserService
+
 from tests.fakes import FakeUserProvider
 
 

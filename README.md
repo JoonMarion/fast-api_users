@@ -243,6 +243,9 @@ individuais retornam `200` com motivo `not_found`, `timeout` ou `provider_error`
 
 ## Qualidade e testes
 
+O workflow de CI do GitHub Actions executa Ruff, pytest e o build do frontend a cada
+`push` e `pull request`, com jobs separados para backend e frontend.
+
 Dentro de `backend`, com o ambiente virtual ativo:
 
 ```bash
@@ -269,6 +272,8 @@ Os testes usam provider fake e `httpx.MockTransport`; não acessam a rede real.
 - A dependência do service pode ser substituída nos testes da rota.
 - O frontend usa um único componente, tipos explícitos e CSS simples, sem biblioteca de
   estado ou componentes visuais.
+- A CI valida automaticamente Ruff, testes do backend e build do frontend antes da
+  integração de mudanças.
 
 ## Uso de IA
 

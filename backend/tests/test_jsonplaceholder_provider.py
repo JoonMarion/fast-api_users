@@ -3,7 +3,6 @@ from collections.abc import Awaitable, Callable
 
 import httpx
 import pytest
-
 from app.providers.base import ProviderError, ProviderTimeout, UserNotFound
 from app.providers.jsonplaceholder import JsonPlaceholderUserProvider
 from app.schemas import User

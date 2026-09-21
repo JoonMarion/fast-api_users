@@ -1,10 +1,10 @@
 import httpx
-
 from app.api.routes import get_user_service
 from app.config import Settings
 from app.main import create_app
 from app.providers.base import ProviderError, ProviderTimeout, UserNotFound
 from app.services.user_service import UserService
+
 from tests.fakes import FakeUserProvider
 
 TEST_SETTINGS = Settings(

@@ -162,7 +162,7 @@ Implementar em etapas pequenas, seguindo esta ordem de prioridade:
    dentro do provider.
 4. [x] Logging estruturado, mantendo a solução simples e sem adicionar plataforma de
    observabilidade externa.
-5. [ ] CI simples executando Ruff, pytest e o build do frontend.
+5. [x] CI simples executando Ruff, pytest e o build do frontend.
 
 Cada diferencial deve ser implementado e verificado isoladamente antes do próximo.
 Continuam fora de escopo implementações de PostgreSQL, cache, filas ou infraestrutura

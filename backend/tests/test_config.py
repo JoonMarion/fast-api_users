@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from app.config import load_settings
 
 ENVIRONMENT_VARIABLES = (
