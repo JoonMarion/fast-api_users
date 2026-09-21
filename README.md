@@ -259,6 +259,8 @@ Os testes usam provider fake e `httpx.MockTransport`; não acessam a rede real.
 - O provider implementa um `Protocol`, mantendo o service independente de HTTPX e da
   implementação JSONPlaceholder.
 - Um único `httpx.AsyncClient` é criado e fechado pelo lifespan do FastAPI.
+- O provider repete até duas vezes falhas transitórias, usando backoff exponencial com
+  jitter e respeitando `Retry-After` em respostas `429`.
 - O service usa `asyncio.gather` e um semáforo por request; uma falha não cancela as
   demais consultas e a ordem de entrada é preservada.
 - Pydantic concentra validação, deduplicação e o contrato público mínimo de usuário.
@@ -277,7 +279,8 @@ manualmente antes de serem incorporadas ao projeto.
 
 A aplicação depende da disponibilidade do provider, espera todas as consultas antes de
 responder e limita cada request a 100 posições. Não possui autenticação, persistência,
-cache, retry, circuit breaker, processamento em background ou observabilidade avançada.
+cache, circuit breaker, processamento em background ou observabilidade avançada. O retry
+é limitado a duas novas tentativas por consulta e não substitui um circuit breaker.
 O Docker Compose fornecido é voltado apenas à execução local; não há configuração de
 deploy.
 
@@ -291,8 +294,8 @@ Esta seria uma evolução de arquitetura, não uma ampliação direta do limite 
    overhead por usuário.
 3. Usaria Redis para cache temporário e PostgreSQL quando fosse necessária persistência
    e rastreabilidade dos resultados.
-4. Adicionaria retry com backoff exponencial e jitter, respeitando `429` e
-   `Retry-After`, além de circuit breaker para falhas persistentes.
+4. Ajustaria os limites do retry existente conforme métricas do provider e adicionaria
+   circuit breaker para falhas persistentes.
 5. Para trabalhos longos, usaria fila e workers: a API retornaria um `job_id`, com
    consulta de status e, se necessário, atualização por SSE ou webhook.
 6. Entregaria resultados por paginação ou streaming para evitar respostas muito grandes.

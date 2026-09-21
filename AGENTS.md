@@ -158,7 +158,7 @@ Implementar em etapas pequenas, seguindo esta ordem de prioridade:
 1. [x] Controle explícito de concorrência com `asyncio.Semaphore`.
 2. [x] Docker Compose para iniciar backend e frontend com um comando, validado com build
    e execução local dos dois serviços.
-3. [ ] Retry com backoff + jitter e tratamento de `429`/`Retry-After`, exclusivamente
+3. [x] Retry com backoff + jitter e tratamento de `429`/`Retry-After`, exclusivamente
    dentro do provider.
 4. [ ] Logging estruturado, mantendo a solução simples e sem adicionar plataforma de
    observabilidade externa.
