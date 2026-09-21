@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      MAX_CONCURRENCY: ${MAX_CONCURRENCY:-10}
+      PROVIDER_BASE_URL: ${PROVIDER_BASE_URL:-https://jsonplaceholder.typicode.com}
+      PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-5}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "5173:5173"

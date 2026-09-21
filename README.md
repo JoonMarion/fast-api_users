@@ -4,15 +4,100 @@ Aplicação pequena com backend FastAPI e frontend React para consultar usuário
 no JSONPlaceholder. As consultas são assíncronas, têm concorrência limitada e isolam a
 falha de cada usuário.
 
-## Requisitos
+## Executar com Docker (recomendado)
 
-- Python 3.11 ou superior
-- Node.js 20.19+ ou 22.12+
-- npm
-- Acesso ao PyPI e ao registro npm para baixar as dependências
-- Acesso ao provider configurado (por padrão, JSONPlaceholder)
+### Requisitos
 
-## Instalação e execução
+- Docker Engine com o plugin Docker Compose;
+- acesso ao Docker Hub, PyPI e registro npm para construir as imagens;
+- acesso ao provider configurado.
+
+O provider é a API externa consultada pelo backend. Por padrão, é o JSONPlaceholder e
+não exige conta ou token; os containers precisam apenas conseguir acessar
+`https://jsonplaceholder.typicode.com`.
+
+<details>
+<summary><strong>Instalar e validar o Docker</strong></summary>
+
+O Docker Engine executa os containers. O plugin Compose fornece o comando
+`docker compose`, responsável por iniciar backend e frontend juntos.
+
+**Windows**
+
+1. Instale o [Docker Desktop para Windows](https://docs.docker.com/desktop/setup/install/windows-install/).
+2. Durante a instalação, mantenha a opção de WSL 2 recomendada pelo instalador.
+3. Inicie o Docker Desktop e aguarde até o serviço ficar disponível.
+
+**macOS**
+
+1. Instale o [Docker Desktop para macOS](https://docs.docker.com/desktop/setup/install/mac-install/)
+   correspondente ao processador Intel ou Apple Silicon.
+2. Inicie o Docker pela pasta Applications.
+
+**Linux**
+
+1. Instale o [Docker Engine](https://docs.docker.com/engine/install/) seguindo as
+   instruções da sua distribuição.
+2. Instale o [plugin Docker Compose](https://docs.docker.com/compose/install/linux/).
+
+Confirme a instalação:
+
+```bash
+docker --version
+docker compose version
+docker run --rm hello-world
+```
+
+O Docker Desktop já inclui Docker Engine, Docker CLI e Docker Compose. No Linux, esses
+componentes podem ser instalados separadamente.
+
+</details>
+
+### Iniciar a aplicação
+
+Na raiz do projeto, execute:
+
+```bash
+docker compose up --build
+```
+
+O backend ficará disponível em `http://localhost:8000` e o frontend em
+`http://localhost:5173`. Para encerrar e remover os containers:
+
+```bash
+docker compose down
+```
+
+As configurações do backend e `VITE_API_URL` podem ser sobrescritas por variáveis do
+ambiente antes de executar o Compose; caso não sejam informadas, os valores padrão da
+aplicação serão utilizados.
+
+## Executar sem Docker (alternativa)
+
+### Requisitos
+
+- Python 3.11 ou superior;
+- Node.js 20.19+ ou 22.12+;
+- npm;
+- acesso ao PyPI, registro npm e provider configurado.
+
+<details>
+<summary><strong>Instalar e validar os requisitos locais</strong></summary>
+
+1. Instale o [Python](https://www.python.org/downloads/) 3.11 ou superior.
+2. Instale uma versão compatível do [Node.js](https://nodejs.org/en/download); o npm é
+   incluído na instalação do Node.js.
+3. Confirme as versões:
+
+```bash
+python --version
+node --version
+npm --version
+```
+
+No Linux ou macOS, o comando do Python pode ser `python3`.
+
+</details>
 
 ### Setup automatizado
 
@@ -22,38 +107,32 @@ Na raiz do projeto, execute:
 python scripts/setup.py
 ```
 
-No Linux ou macOS, use `python3` em todos os comandos desta seção caso `python` não esteja
-disponível. O script valida as versões do Python e do Node.js, a presença do npm e o
-acesso ao provider antes de alterar o projeto. Em seguida, ele cria `backend/.venv`,
-preserva arquivos de ambiente existentes, instala as dependências do backend e executa
-`npm ci` no frontend.
+No Linux ou macOS, use `python3` caso `python` não esteja disponível. O script valida os
+requisitos, cria `backend/.venv`, preserva arquivos de ambiente existentes e instala as
+dependências do backend e do frontend.
 
-Para apenas validar os requisitos, sem criar ou instalar nada:
-
-```bash
-python scripts/setup.py --check-only
-```
-
-Em ambientes temporariamente sem acesso ao provider, a verificação de conectividade pode
-ser ignorada explicitamente com `--skip-provider-check`.
-
-Depois do setup, inicie backend e frontend juntos, a partir da raiz do projeto:
+Depois do setup, em outro terminal, execute:
 
 ```bash
 python scripts/run.py
 ```
 
-O setup apenas prepara o ambiente e encerra mostrando um resumo; ele não inicia serviços
-automaticamente. Execute o comando acima em outro terminal para manter instalação e
-execução como etapas explícitas.
-
 O backend ficará disponível em `http://localhost:8000` e o frontend em
-`http://localhost:5173`. Os dois processos permanecem no mesmo terminal e são encerrados
-com `Ctrl+C`.
+`http://localhost:5173`. Os dois processos são encerrados com `Ctrl+C`.
 
-As etapas abaixo descrevem o processo manual equivalente.
+Para apenas validar os requisitos, sem instalar nada:
 
-### Backend
+```bash
+python scripts/setup.py --check-only
+```
+
+Se o provider estiver temporariamente indisponível, use `--skip-provider-check` para
+ignorar somente essa verificação.
+
+<details>
+<summary><strong>Instalação e execução manual</strong></summary>
+
+#### Backend
 
 ```bash
 cd backend
@@ -81,10 +160,9 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 No PowerShell, use `Copy-Item .env.example .env` no lugar de `cp`.
-
 A documentação interativa ficará em `http://localhost:8000/docs`.
 
-### Frontend
+#### Frontend
 
 Em outro terminal:
 
@@ -96,9 +174,9 @@ npm run dev
 ```
 
 No PowerShell, use `Copy-Item .env.example .env.local` no lugar de `cp`.
+Para validar a compilação de produção, execute `npm run build`.
 
-O Vite usa `http://localhost:5173` por padrão. Para validar a compilação de produção,
-execute `npm run build`.
+</details>
 
 ## Variáveis de ambiente
 
@@ -200,7 +278,8 @@ manualmente antes de serem incorporadas ao projeto.
 A aplicação depende da disponibilidade do provider, espera todas as consultas antes de
 responder e limita cada request a 100 posições. Não possui autenticação, persistência,
 cache, retry, circuit breaker, processamento em background ou observabilidade avançada.
-Também não inclui configuração de deploy ou containers.
+O Docker Compose fornecido é voltado apenas à execução local; não há configuração de
+deploy.
 
 ### Se precisasse consultar milhares de usuários
 

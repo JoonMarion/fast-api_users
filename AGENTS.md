@@ -147,16 +147,26 @@ deploy, cloud, ORMs ou banco de dados, cache no código, bibliotecas de UI, gere
 de estado (Redux etc.) e qualquer coisa "production-ready" além do pedido.
 PostgreSQL, cache e filas devem aparecer **apenas como sugestão de evolução no README**.
 
-## 9. Diferenciais opcionais (somente após o núcleo funcionando e testado)
+## 9. Próxima etapa: aplicar os diferenciais
 
-Ordem de prioridade:
-1. Controle explícito de concorrência (já coberto pelo semaphore)
-2. Docker Compose (backend + frontend com um comando)
-3. Retry com backoff + jitter e tratamento de `429`/`Retry-After` (dentro do provider)
-4. Logging estruturado
-5. CI simples (ruff + pytest)
+O núcleo da aplicação já está funcionando, testado e commitado. Embora estes itens
+continuem opcionais no enunciado original, eles passam a compor o escopo ativo de
+evolução deste repositório.
 
-Só implementar um diferencial se ele couber sem inflar o código.
+Implementar em etapas pequenas, seguindo esta ordem de prioridade:
+
+1. [x] Controle explícito de concorrência com `asyncio.Semaphore`.
+2. [x] Docker Compose para iniciar backend e frontend com um comando, validado com build
+   e execução local dos dois serviços.
+3. [ ] Retry com backoff + jitter e tratamento de `429`/`Retry-After`, exclusivamente
+   dentro do provider.
+4. [ ] Logging estruturado, mantendo a solução simples e sem adicionar plataforma de
+   observabilidade externa.
+5. [ ] CI simples executando Ruff, pytest e o build do frontend.
+
+Cada diferencial deve ser implementado e verificado isoladamente antes do próximo.
+Continuam fora de escopo implementações de PostgreSQL, cache, filas ou infraestrutura
+cloud; esses itens permanecem apenas como sugestões de evolução no README.
 
 ## 10. Padrões de código
 
@@ -198,13 +208,16 @@ Deve ser curto e honesto, cobrindo:
    e circuit breaker; processamento em background (fila + worker) com `job_id` e consulta de status
    ou SSE/webhook; paginação/streaming da resposta; métricas e logs estruturados.
 
-## 13. Definição de pronto
+## 13. Definição de pronto do núcleo
 
-- [ ] Endpoint validando entrada e retornando `users` e `failed` separados
-- [ ] Falha, not found, erro HTTP e timeout de um usuário não afetam os demais
-- [ ] Provider isolado atrás de interface, trocável sem mexer no service
-- [ ] Testes passando (mínimo os dois obrigatórios), sem rede real
-- [ ] Frontend com loading, sucesso, falhados e erro do backend
-- [ ] `ruff` limpo
-- [ ] README completo e coerente com o código
-- [ ] Nada fora do escopo foi adicionado
+Esta checklist valida a entrega obrigatória original. Para considerar concluída a etapa
+de evolução atual, também é necessário concluir os itens pendentes da seção 9.
+
+- [x] Endpoint validando entrada e retornando `users` e `failed` separados
+- [x] Falha, not found, erro HTTP e timeout de um usuário não afetam os demais
+- [x] Provider isolado atrás de interface, trocável sem mexer no service
+- [x] Testes passando (mínimo os dois obrigatórios), sem rede real
+- [x] Frontend com loading, sucesso, falhados e erro do backend
+- [x] `ruff` limpo
+- [x] README completo e coerente com o código
+- [x] Nada fora do escopo foi adicionado
