@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -10,6 +11,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = PROJECT_ROOT / "backend"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+DEPENDENCY_MARKER = BACKEND_DIR / ".venv" / ".dependency-fingerprint"
+DEPENDENCY_FILES = (BACKEND_DIR / "pyproject.toml", FRONTEND_DIR / "package-lock.json")
+MINIMUM_PYTHON = (3, 11)
 
 
 class CheckError(RuntimeError):
@@ -27,6 +31,18 @@ def backend_python() -> Path:
     if not python_path.exists():
         raise CheckError("Backend virtual environment not found")
     return python_path
+
+
+def ensure_backend_python() -> Path:
+    virtual_environment = BACKEND_DIR / ".venv"
+    if not virtual_environment.exists():
+        run_check(
+            "Backend virtual environment",
+            [sys.executable, "-m", "venv", str(virtual_environment)],
+            cwd=PROJECT_ROOT,
+        )
+
+    return backend_python()
 
 
 def npm_command() -> str:
@@ -72,17 +88,50 @@ def run_backend_tests(python_path: Path) -> None:
         )
 
 
-def main() -> int:
-    try:
-        python_path, npm = validate_project_setup()
-    except CheckError as exc:
-        print(
-            f"Check error: {exc}. Execute 'python scripts/setup.py' first.",
-            file=sys.stderr,
-        )
-        return 1
+def dependency_fingerprint() -> str:
+    digest = hashlib.sha256()
+    for path in DEPENDENCY_FILES:
+        digest.update(path.name.encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def setup_is_current() -> bool:
+    if not (FRONTEND_DIR / "node_modules").is_dir():
+        return False
 
     try:
+        backend_python()
+        return DEPENDENCY_MARKER.read_text(encoding="utf-8") == dependency_fingerprint()
+    except (CheckError, OSError):
+        return False
+
+
+def prepare_project() -> None:
+    if setup_is_current():
+        print("\n[Project setup]\nDependencies are already synchronized.", flush=True)
+        return
+
+    if sys.version_info[:2] < MINIMUM_PYTHON:
+        required = ".".join(map(str, MINIMUM_PYTHON))
+        current = ".".join(map(str, sys.version_info[:3]))
+        raise CheckError(f"Python {required}+ is required; found {current}")
+
+    python_path = ensure_backend_python()
+    npm = npm_command()
+    run_check(
+        "Backend dependencies",
+        [str(python_path), "-m", "pip", "install", "-e", ".[dev]"],
+        cwd=BACKEND_DIR,
+    )
+    run_check("Frontend dependencies", [npm, "ci"], cwd=FRONTEND_DIR)
+    DEPENDENCY_MARKER.write_text(dependency_fingerprint(), encoding="utf-8")
+
+
+def main() -> int:
+    try:
+        prepare_project()
+        python_path, npm = validate_project_setup()
         run_check(
             "Ruff lint",
             [
@@ -118,6 +167,9 @@ def main() -> int:
             [npm, "run", "build"],
             cwd=FRONTEND_DIR,
         )
+    except CheckError as exc:
+        print(f"\nCheck error: {exc}.", file=sys.stderr)
+        return 1
     except subprocess.CalledProcessError as exc:
         print(f"\nCheck failed with exit code {exc.returncode}.", file=sys.stderr)
         return exc.returncode
