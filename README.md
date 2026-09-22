@@ -1,228 +1,104 @@
 # Fast API Users
 
-Aplicação pequena com backend FastAPI e frontend React para consultar usuários por ID
-no JSONPlaceholder. As consultas são assíncronas, têm concorrência limitada e isolam a
-falha de cada usuário.
+Aplicação full stack para consultar usuários por ID no
+[JSONPlaceholder](https://jsonplaceholder.typicode.com/). O backend processa as
+consultas de forma assíncrona, limita a concorrência e isola falhas individuais; o
+frontend apresenta sucessos e erros parciais em uma interface simples.
 
-## Executar com Docker (recomendado)
+**Stack:** Python 3.11, FastAPI, Pydantic, HTTPX, React, TypeScript e Vite.
 
-### Requisitos
-
-- Docker Engine com o plugin Docker Compose;
-- acesso ao Docker Hub, PyPI e registro npm para construir as imagens;
-- acesso ao provider configurado.
-
-O provider é a API externa consultada pelo backend. Por padrão, é o JSONPlaceholder e
-não exige conta ou token; os containers precisam apenas conseguir acessar
-`https://jsonplaceholder.typicode.com`.
-
-<details>
-<summary><strong>Instalar e validar o Docker</strong></summary>
-
-O Docker Engine executa os containers. O plugin Compose fornece o comando
-`docker compose`, responsável por iniciar backend e frontend juntos.
-
-**Windows**
-
-1. Instale o [Docker Desktop para Windows](https://docs.docker.com/desktop/setup/install/windows-install/).
-2. Durante a instalação, mantenha a opção de WSL 2 recomendada pelo instalador.
-3. Inicie o Docker Desktop e aguarde até o serviço ficar disponível.
-
-**macOS**
-
-1. Instale o [Docker Desktop para macOS](https://docs.docker.com/desktop/setup/install/mac-install/)
-   correspondente ao processador Intel ou Apple Silicon.
-2. Inicie o Docker pela pasta Applications.
-
-**Linux**
-
-1. Instale o [Docker Engine](https://docs.docker.com/engine/install/) seguindo as
-   instruções da sua distribuição.
-2. Instale o [plugin Docker Compose](https://docs.docker.com/compose/install/linux/).
-
-Confirme a instalação:
-
-```bash
-docker --version
-docker compose version
-docker run --rm hello-world
+```text
+React → FastAPI → UserService → UserProvider → JSONPlaceholder
 ```
 
-O Docker Desktop já inclui Docker Engine, Docker CLI e Docker Compose. No Linux, esses
-componentes podem ser instalados separadamente.
+## Executar
 
-</details>
+Ainda não tem o Docker? Siga o [guia oficial de instalação](https://docs.docker.com/get-started/get-docker/)
+para seu sistema operacional.
 
-### Iniciar a aplicação
-
-Na raiz do projeto, execute:
+Com Docker e o plugin Compose instalados, execute na raiz do projeto:
 
 ```bash
 docker compose up --build
 ```
 
-O backend ficará disponível em `http://localhost:8000` e o frontend em
-`http://localhost:5173`. Para encerrar e remover os containers:
+Use `--build` na primeira execução e depois de alterar código, dependências ou algum
+`Dockerfile`. Para apenas iniciar novamente sem mudanças, basta:
+
+```bash
+docker compose up
+```
+
+O `--build` reconstrói as mesmas imagens e reaproveita o cache; ele não cria uma nova
+imagem nomeada a cada execução.
+
+- Frontend: http://localhost:5173
+- API: http://localhost:8000
+- Swagger: http://localhost:8000/docs
+
+Para encerrar:
 
 ```bash
 docker compose down
 ```
 
-As configurações do backend e `VITE_API_URL` podem ser sobrescritas por variáveis do
-ambiente antes de executar o Compose; caso não sejam informadas, os valores padrão da
-aplicação serão utilizados.
-
-## Executar sem Docker (alternativa)
+<details>
+<summary><strong>Executar localmente sem Docker</strong></summary>
 
 ### Requisitos
 
-- Python 3.11 ou superior;
-- Node.js 20.19+ ou 22.12+;
-- npm;
-- acesso ao PyPI, registro npm e provider configurado.
+- Python 3.11+
+- Node.js 20.19+ ou 22.12+
+- npm
 
-<details>
-<summary><strong>Instalar e validar os requisitos locais</strong></summary>
+### Setup automático
 
-1. Instale o [Python](https://www.python.org/downloads/) 3.11 ou superior.
-2. Instale uma versão compatível do [Node.js](https://nodejs.org/en/download); o npm é
-   incluído na instalação do Node.js.
-3. Confirme as versões:
-
-```bash
-python --version
-node --version
-npm --version
-```
-
-No Linux ou macOS, o comando do Python pode ser `python3`.
-
-</details>
-
-### Setup automatizado
-
-Na raiz do projeto, execute:
+Na raiz do projeto:
 
 ```bash
 python scripts/setup.py
-```
-
-No Linux ou macOS, use `python3` caso `python` não esteja disponível. O script valida os
-requisitos, cria `backend/.venv`, preserva arquivos de ambiente existentes e instala as
-dependências do backend e do frontend.
-
-Depois do setup, em outro terminal, execute:
-
-```bash
 python scripts/run.py
 ```
 
-O backend ficará disponível em `http://localhost:8000` e o frontend em
-`http://localhost:5173`. Os dois processos são encerrados com `Ctrl+C`.
+O setup valida os requisitos, cria `backend/.venv`, configura os arquivos de ambiente
+e instala as dependências. Use `python3` no lugar de `python` quando necessário.
 
-Para apenas validar os requisitos, sem instalar nada:
+### Setup manual
 
-```bash
-python scripts/setup.py --check-only
-```
-
-Se o provider estiver temporariamente indisponível, use `--skip-provider-check` para
-ignorar somente essa verificação.
-
-<details>
-<summary><strong>Instalação e execução manual</strong></summary>
-
-#### Backend
+Backend:
 
 ```bash
 cd backend
 python -m venv .venv
 ```
 
-Ative o ambiente virtual:
-
-```powershell
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-```
-
-```bash
-# Linux/macOS
-source .venv/bin/activate
-```
-
-Instale as dependências e inicie a API:
+Ative o ambiente virtual com `.venv\Scripts\Activate.ps1` no PowerShell ou
+`source .venv/bin/activate` no Linux/macOS. Depois:
 
 ```bash
 python -m pip install -e ".[dev]"
-cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-No PowerShell, use `Copy-Item .env.example .env` no lugar de `cp`.
-A documentação interativa ficará em `http://localhost:8000/docs`.
-
-#### Frontend
-
-Em outro terminal:
+Frontend, em outro terminal:
 
 ```bash
 cd frontend
 npm ci
-cp .env.example .env.local
 npm run dev
 ```
 
-No PowerShell, use `Copy-Item .env.example .env.local` no lugar de `cp`.
-Para validar a compilação de produção, execute `npm run build`.
-
 </details>
-
-## Variáveis de ambiente
-
-Cada projeto mantém sua própria configuração:
-
-- `backend/.env`: configuração local do FastAPI;
-- `frontend/.env.local`: configuração local carregada pelo Vite;
-- os respectivos `.env.example` documentam os valores esperados e podem ser versionados.
-
-Os arquivos locais são ignorados pelo Git. Variáveis definidas no ambiente do processo
-têm prioridade sobre os valores de `backend/.env`.
-
-### Backend
-
-| Variável | Padrão | Finalidade |
-| --- | --- | --- |
-| `PROVIDER_TIMEOUT_SECONDS` | `5` | Timeout das chamadas ao provider |
-| `MAX_CONCURRENCY` | `10` | Máximo de consultas simultâneas por request |
-| `PROVIDER_BASE_URL` | `https://jsonplaceholder.typicode.com` | URL base do provider |
-| `FRONTEND_ORIGIN` | `http://localhost:5173` | Única origem liberada pelo CORS |
-
-### Frontend
-
-| Variável | Padrão | Finalidade |
-| --- | --- | --- |
-| `VITE_API_URL` | URL relativa | URL do backend usada pelo frontend |
-
-Configuração local recomendada em `frontend/.env.local`:
-
-```env
-VITE_API_URL=http://localhost:8000
-```
 
 ## API
 
 `POST /api/users/fetch`
-
-Request:
 
 ```json
 {
   "user_ids": [1, 2, 999]
 }
 ```
-
-Response `200`:
 
 ```json
 {
@@ -237,75 +113,79 @@ Response `200`:
 }
 ```
 
-A entrada aceita de 1 a 100 IDs inteiros positivos. IDs repetidos são removidos após a
-validação, preservando a primeira ocorrência. Entrada inválida retorna `422`; falhas
-individuais retornam `200` com motivo `not_found`, `timeout` ou `provider_error`.
-
-## Qualidade e testes
-
-O workflow de CI do GitHub Actions executa Ruff, pytest e o build do frontend a cada
-`push` e `pull request`, com jobs separados para backend e frontend.
-
-Dentro de `backend`, com o ambiente virtual ativo:
-
-```bash
-ruff format .
-ruff check .
-ruff format --check .
-pytest
-```
-
-Os testes usam provider fake e `httpx.MockTransport`; não acessam a rede real.
+A API aceita de 1 a 100 IDs inteiros positivos. IDs repetidos são removidos sem
+alterar a ordem. Entrada inválida retorna `422`; falhas individuais retornam `200` com
+motivo `not_found`, `timeout` ou `provider_error`.
 
 ## Decisões técnicas
 
-- O provider implementa um `Protocol`, mantendo o service independente de HTTPX e da
-  implementação JSONPlaceholder.
-- Um único `httpx.AsyncClient` é criado e fechado pelo lifespan do FastAPI.
-- O provider repete até duas vezes falhas transitórias, usando backoff exponencial com
-  jitter e respeitando `Retry-After` em respostas `429`.
-- Os eventos da aplicação são escritos como JSON pela biblioteca padrão, incluindo
-  contexto de retries, resultado das consultas e exceções inesperadas.
-- O service usa `asyncio.gather` e um semáforo por request; uma falha não cancela as
-  demais consultas e a ordem de entrada é preservada.
-- Pydantic concentra validação, deduplicação e o contrato público mínimo de usuário.
-- A dependência do service pode ser substituída nos testes da rota.
-- O frontend usa um único componente, tipos explícitos e CSS simples, sem biblioteca de
-  estado ou componentes visuais.
-- A CI valida automaticamente Ruff, testes do backend e build do frontend antes da
-  integração de mudanças.
+- `UserProvider` isola a integração externa e mantém o service independente de HTTPX.
+- Um único `httpx.AsyncClient` é compartilhado durante o ciclo de vida da aplicação.
+- `asyncio.gather` e `asyncio.Semaphore` permitem concorrência controlada sem perder a
+  ordem dos resultados.
+- Retry seletivo usa backoff exponencial com jitter e respeita `Retry-After` em `429`.
+- Logs estruturados em JSON registram consultas, retries e falhas inesperadas.
+- O frontend mantém estado local, cliente HTTP e tipos separados, sem dependências de
+  UI ou gerenciamento global de estado.
+
+## Qualidade
+
+Os testes usam providers falsos e `httpx.MockTransport`; nenhuma suíte depende da rede
+real. A CI executa Ruff, pytest e o build do frontend em cada `push` e `pull request`.
+Para executar as mesmas verificações antes do push:
+
+```bash
+python scripts/check.py
+```
+
+Não é necessário ativar a virtualenv: o script usa automaticamente o Python de
+`backend/.venv`. Antes da primeira execução, rode `python scripts/setup.py` para criar
+o ambiente e instalar as dependências do backend e do frontend.
+
+<details>
+<summary><strong>O que o script verifica?</strong></summary>
+
+1. Lint com `ruff check`.
+2. Formatação com `ruff format --check`.
+3. Testes do backend com `pytest`.
+4. Build do frontend com `npm run build`.
+
+As etapas são executadas em sequência e o script interrompe no primeiro erro.
+
+</details>
+
+<details>
+<summary><strong>Configuração</strong></summary>
+
+| Variável | Padrão |
+| --- | --- |
+| `PROVIDER_TIMEOUT_SECONDS` | `5` |
+| `MAX_CONCURRENCY` | `10` |
+| `PROVIDER_BASE_URL` | `https://jsonplaceholder.typicode.com` |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` |
+| `VITE_API_URL` | URL relativa |
+
+Os exemplos estão em `backend/.env.example` e `frontend/.env.example`.
+
+</details>
+
+## Se precisasse consultar milhares de usuários
+
+A evolução seria incremental: processar IDs em lotes com limites globais de
+concorrência, priorizar um endpoint batch do provider e usar Redis ou PostgreSQL apenas
+quando cache, persistência ou rastreabilidade fossem necessários. Trabalhos longos
+iriam para uma fila com workers, retornando `job_id` e status por polling, SSE ou
+webhook. Também seriam considerados circuit breaker, paginação ou streaming, métricas
+e centralização dos logs estruturados.
+
+## Limitações atuais
+
+O limite de concorrência é por request, o Compose é voltado ao desenvolvimento local e
+não há autenticação, cache, persistência, circuit breaker, processamento em background,
+métricas ou tracing.
 
 ## Uso de IA
 
-Utilizei apenas o Codex, com o modelo GPT-5.6 Sol, para apoiar a revisão do código, a
-análise dos resultados de lint, testes e build e a verificação de aderência aos
-requisitos do desafio. As análises, recomendações e conclusões foram revisadas
-manualmente antes de serem incorporadas ao projeto.
-
-## Limitações e melhorias futuras
-
-A aplicação depende da disponibilidade do provider, espera todas as consultas antes de
-responder e limita cada request a 100 posições. Não possui autenticação, persistência,
-cache, circuit breaker ou processamento em background. Também não possui métricas,
-tracing ou centralização dos logs estruturados. O retry é limitado a duas novas
-tentativas por consulta e não substitui um circuit breaker.
-O Docker Compose fornecido é voltado apenas à execução local; não há configuração de
-deploy.
-
-### Se precisasse consultar milhares de usuários
-
-Esta seria uma evolução de arquitetura, não uma ampliação direta do limite atual:
-
-1. Processaria IDs em lotes, mantendo controle explícito de concorrência e limites
-   globais para proteger a aplicação e o provider.
-2. Preferiria um endpoint batch do provider, caso disponível, reduzindo conexões e
-   overhead por usuário.
-3. Usaria Redis para cache temporário e PostgreSQL quando fosse necessária persistência
-   e rastreabilidade dos resultados.
-4. Ajustaria os limites do retry existente conforme métricas do provider e adicionaria
-   circuit breaker para falhas persistentes.
-5. Para trabalhos longos, usaria fila e workers: a API retornaria um `job_id`, com
-   consulta de status e, se necessário, atualização por SSE ou webhook.
-6. Entregaria resultados por paginação ou streaming para evitar respostas muito grandes.
-7. Adicionaria métricas de latência, erro, fila e cache e centralizaria os logs
-   estruturados, com correlação por request e job.
+O Codex, com o modelo GPT-5.6 Sol, foi usado para apoiar revisão de código, análise dos
+resultados de lint, testes e build e verificação dos requisitos. As decisões e mudanças
+incorporadas ao projeto foram revisadas manualmente.
