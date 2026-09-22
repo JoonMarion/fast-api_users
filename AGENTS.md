@@ -19,6 +19,10 @@ Prefira sempre a solução **menor, mais simples e mais legível** que atenda ao
 - Frontend: React + TypeScript + Vite, HTML e CSS simples
 - Provider externo padrão: JSONPlaceholder (`https://jsonplaceholder.typicode.com/users/{id}`)
 
+Evolução aprovada:
+
+- Cache: Redis com a API assíncrona do pacote `redis` (`redis.asyncio`).
+
 As dependências listadas nesta stack estão previamente aprovadas para o setup inicial.
 Não adicione outras dependências sem justificar e pedir confirmação.
 
@@ -34,6 +38,8 @@ Não adicione outras dependências sem justificar e pedir confirmação.
     services/user_service.py # regra de negócio (orquestração)
     providers/base.py        # Protocol UserProvider + exceções de domínio
     providers/jsonplaceholder.py
+    cache/base.py            # Protocol UserCache
+    cache/redis.py           # implementação Redis
   tests/
   pyproject.toml
 /frontend
@@ -98,6 +104,15 @@ Response (200):
 - Trocar de provider deve exigir apenas uma nova classe que implemente o Protocol
   e a troca na injeção de dependência.
 
+**Cache**
+- Definir `UserCache` como `Protocol`; o service não pode importar Redis.
+- Usar cache-aside por usuário, com chave `user:{id}` e TTL configurável.
+- Cachear apenas usuários obtidos com sucesso e somente os campos públicos `id` e `name`.
+- Payload ausente, expirado ou inválido deve ser tratado como cache miss.
+- Falhas do Redis devem ser registradas e degradar para o provider externo.
+- Usar um único cliente `redis.asyncio.Redis`, criado e fechado no lifespan.
+- Redis é cache descartável: sem volume, AOF ou snapshot em disco.
+
 **Service**
 - Depende apenas de `UserProvider` (injetado), nunca de uma implementação concreta.
 - Executar consultas com `asyncio.gather`, com wrapper por tarefa que captura as exceções
@@ -110,7 +125,9 @@ Response (200):
 **Config**
 - Manter o limite de 100 IDs como constante do contrato.
 - `PROVIDER_TIMEOUT_SECONDS` (padrão 5), `MAX_CONCURRENCY` (padrão 10),
-  `PROVIDER_BASE_URL` e `FRONTEND_ORIGIN` devem ser sobrescrevíveis por variável de ambiente.
+  `PROVIDER_BASE_URL`, `FRONTEND_ORIGIN`, `REDIS_URL`, `CACHE_TTL_SECONDS` (padrão
+  300) e `CACHE_TIMEOUT_SECONDS` (padrão 0.5) devem ser sobrescrevíveis por variável
+  de ambiente.
 - Preferir a biblioteca padrão para ler o ambiente; não adicionar uma dependência apenas
   para configuração deste projeto pequeno.
 
@@ -142,10 +159,12 @@ Response (200):
 
 ## 8. Fora de escopo (NÃO fazer)
 
-Kubernetes, Kafka, Celery/filas, CQRS, Event Sourcing, microsserviços, Terraform, autenticação,
-deploy, cloud, ORMs ou banco de dados, cache no código, bibliotecas de UI, gerenciadores
-de estado (Redux etc.) e qualquer coisa "production-ready" além do pedido.
-PostgreSQL, cache e filas devem aparecer **apenas como sugestão de evolução no README**.
+Kubernetes, Kafka, Celery/filas, CQRS, Event Sourcing, microsserviços, Terraform,
+autenticação, deploy, cloud, bibliotecas de UI, gerenciadores de estado (Redux etc.) e
+qualquer coisa "production-ready" além do pedido.
+
+Redis é a única exceção explicitamente adicionada ao escopo de evolução. PostgreSQL,
+ORMs, migrations e filas continuam apenas como sugestões de evolução no README.
 
 ## 9. Próxima etapa: aplicar os diferenciais
 
@@ -156,17 +175,26 @@ evolução deste repositório.
 Implementar em etapas pequenas, seguindo esta ordem de prioridade:
 
 1. [x] Controle explícito de concorrência com `asyncio.Semaphore`.
-2. [x] Docker Compose para iniciar backend e frontend com um comando, validado com build
-   e execução local dos dois serviços.
+2. [x] Docker Compose para iniciar backend, frontend e Redis com um comando, validado
+   com build e execução local dos três serviços.
 3. [x] Retry com backoff + jitter e tratamento de `429`/`Retry-After`, exclusivamente
    dentro do provider.
 4. [x] Logging estruturado, mantendo a solução simples e sem adicionar plataforma de
    observabilidade externa.
 5. [x] CI simples executando Ruff, pytest e o build do frontend.
+6. [x] Definir o contrato `UserCache`, configuração e fake, sem alterar ainda o fluxo
+   de produção.
+7. [x] Implementar cache-aside no Redis, com TTL configurável e payload validado pelo
+   modelo público `User`.
+8. [x] Compor Redis e provider externo atrás de `UserProvider`, mantendo o `UserService`
+   e o contrato HTTP inalterados. Falhas de cache devem degradar para o provider e ser
+   registradas; não podem derrubar consultas que o provider ainda conseguiria atender.
+9. [x] Adicionar Redis ao Docker Compose, testes determinísticos, validação na CI e
+   documentação final. Validar cada camada isoladamente antes de avançar.
 
 Cada diferencial deve ser implementado e verificado isoladamente antes do próximo.
-Continuam fora de escopo implementações de PostgreSQL, cache, filas ou infraestrutura
-cloud; esses itens permanecem apenas como sugestões de evolução no README.
+Continuam fora de escopo PostgreSQL, filas e infraestrutura cloud. A arquitetura
+do Redis deve permanecer simples e isolada atrás dos protocolos existentes.
 
 ## 10. Padrões de código
 
@@ -207,6 +235,8 @@ Deve ser curto e honesto, cobrindo:
    cache (Redis) e persistência (PostgreSQL); retry com backoff + jitter, respeitando `429`/`Retry-After`,
    e circuit breaker; processamento em background (fila + worker) com `job_id` e consulta de status
    ou SSE/webhook; paginação/streaming da resposta; métricas e logs estruturados.
+6. Documentar o cache Redis como funcionalidade implementada e manter PostgreSQL,
+   filas e demais evoluções futuras claramente separados do comportamento atual.
 
 ## 13. Definição de pronto do núcleo
 
@@ -221,3 +251,5 @@ de evolução atual, também é necessário concluir os itens pendentes da seç�
 - [x] `ruff` limpo
 - [x] README completo e coerente com o código
 - [x] Nada fora do escopo foi adicionado
+- [x] Cache Redis com TTL implementado e testado
+- [x] Falhas do Redis degradam para o provider de forma previsível e observável

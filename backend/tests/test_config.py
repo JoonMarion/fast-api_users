@@ -8,6 +8,9 @@ ENVIRONMENT_VARIABLES = (
     "MAX_CONCURRENCY",
     "PROVIDER_BASE_URL",
     "FRONTEND_ORIGIN",
+    "REDIS_URL",
+    "CACHE_TTL_SECONDS",
+    "CACHE_TIMEOUT_SECONDS",
 )
 
 
@@ -28,6 +31,9 @@ def test_load_settings_reads_backend_env_file(
                 "MAX_CONCURRENCY=4",
                 "PROVIDER_BASE_URL=https://provider.test",
                 "FRONTEND_ORIGIN=https://frontend.test",
+                "REDIS_URL=redis://redis.test:6379/1",
+                "CACHE_TTL_SECONDS=120",
+                "CACHE_TIMEOUT_SECONDS=0.2",
             )
         ),
         encoding="utf-8",
@@ -39,6 +45,9 @@ def test_load_settings_reads_backend_env_file(
     assert settings.max_concurrency == 4
     assert settings.provider_base_url == "https://provider.test"
     assert settings.frontend_origin == "https://frontend.test"
+    assert settings.redis_url == "redis://redis.test:6379/1"
+    assert settings.cache_ttl_seconds == 120
+    assert settings.cache_timeout_seconds == 0.2
 
 
 def test_process_environment_overrides_backend_env_file(
@@ -52,3 +61,15 @@ def test_process_environment_overrides_backend_env_file(
     settings = load_settings(env_file)
 
     assert settings.max_concurrency == 8
+
+
+def test_load_settings_uses_cache_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clear_environment(monkeypatch)
+
+    settings = load_settings(tmp_path / "missing.env")
+
+    assert settings.redis_url == "redis://localhost:6379/0"
+    assert settings.cache_ttl_seconds == 300
+    assert settings.cache_timeout_seconds == 0.5

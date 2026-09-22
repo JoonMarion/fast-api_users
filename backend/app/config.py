@@ -60,6 +60,9 @@ class Settings:
     max_concurrency: int
     provider_base_url: str
     frontend_origin: str
+    redis_url: str
+    cache_ttl_seconds: int
+    cache_timeout_seconds: float
 
 
 def load_settings(env_file: Path = ENV_FILE) -> Settings:
@@ -81,5 +84,16 @@ def load_settings(env_file: Path = ENV_FILE) -> Settings:
         ),
         frontend_origin=_get_setting(
             "FRONTEND_ORIGIN", "http://localhost:5173", env_file_values
+        ),
+        redis_url=_get_setting(
+            "REDIS_URL", "redis://localhost:6379/0", env_file_values
+        ),
+        cache_ttl_seconds=_positive_int(
+            "CACHE_TTL_SECONDS",
+            _get_setting("CACHE_TTL_SECONDS", "300", env_file_values),
+        ),
+        cache_timeout_seconds=_positive_float(
+            "CACHE_TIMEOUT_SECONDS",
+            _get_setting("CACHE_TIMEOUT_SECONDS", "0.5", env_file_values),
         ),
     )

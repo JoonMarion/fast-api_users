@@ -5,10 +5,10 @@ Aplicação full stack para consultar usuários por ID no
 consultas de forma assíncrona, limita a concorrência e isola falhas individuais; o
 frontend apresenta sucessos e erros parciais em uma interface simples.
 
-**Stack:** Python 3.11, FastAPI, Pydantic, HTTPX, React, TypeScript e Vite.
+**Stack:** Python 3.11, FastAPI, Pydantic, HTTPX, Redis, React, TypeScript e Vite.
 
 ```text
-React → FastAPI → UserService → UserProvider → JSONPlaceholder
+React → FastAPI → UserService → CachedUserProvider → Redis / JSONPlaceholder
 ```
 
 ## Executar
@@ -21,6 +21,8 @@ Com Docker e o plugin Compose instalados, execute na raiz do projeto:
 ```bash
 docker compose up --build
 ```
+
+Esse comando inicia todo o ambiente: backend, frontend e Redis.
 
 Use `--build` na primeira execução e depois de alterar código, dependências ou algum
 `Dockerfile`. Para apenas iniciar novamente sem mudanças, basta:
@@ -36,59 +38,13 @@ imagem nomeada a cada execução.
 - API: http://localhost:8000
 - Swagger: http://localhost:8000/docs
 
+O Redis fica acessível apenas na rede interna do Compose e não persiste dados em disco.
+
 Para encerrar:
 
 ```bash
 docker compose down
 ```
-
-<details>
-<summary><strong>Executar localmente sem Docker</strong></summary>
-
-### Requisitos
-
-- Python 3.11+
-- Node.js 20.19+ ou 22.12+
-- npm
-
-### Setup automático
-
-Na raiz do projeto:
-
-```bash
-python scripts/setup.py
-python scripts/run.py
-```
-
-O setup valida os requisitos, cria `backend/.venv`, configura os arquivos de ambiente
-e instala as dependências. Use `python3` no lugar de `python` quando necessário.
-
-### Setup manual
-
-Backend:
-
-```bash
-cd backend
-python -m venv .venv
-```
-
-Ative o ambiente virtual com `.venv\Scripts\Activate.ps1` no PowerShell ou
-`source .venv/bin/activate` no Linux/macOS. Depois:
-
-```bash
-python -m pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8000
-```
-
-Frontend, em outro terminal:
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-</details>
 
 ## API
 
@@ -124,31 +80,34 @@ motivo `not_found`, `timeout` ou `provider_error`.
 - `asyncio.gather` e `asyncio.Semaphore` permitem concorrência controlada sem perder a
   ordem dos resultados.
 - Retry seletivo usa backoff exponencial com jitter e respeita `Retry-After` em `429`.
+- Redis usa cache-aside por usuário com TTL; indisponibilidade do cache degrada para o
+  provider externo sem alterar o contrato da API.
 - Logs estruturados em JSON registram consultas, retries e falhas inesperadas.
 - O frontend mantém estado local, cliente HTTP e tipos separados, sem dependências de
   UI ou gerenciamento global de estado.
 
 ## Qualidade
 
-Os testes usam providers falsos e `httpx.MockTransport`; nenhuma suíte depende da rede
-real. A CI executa Ruff, pytest e o build do frontend em cada `push` e `pull request`.
+Os testes usam providers e clientes Redis falsos, além de `httpx.MockTransport`;
+nenhuma suíte depende da rede real. A CI executa Ruff, pytest e o build do frontend em
+cada `push` e `pull request`.
 Para executar as mesmas verificações antes do push:
 
 ```bash
 python scripts/check.py
 ```
 
-Não é necessário ativar a virtualenv: o script usa automaticamente o Python de
-`backend/.venv`. Antes da primeira execução, rode `python scripts/setup.py` para criar
-o ambiente e instalar as dependências do backend e do frontend.
+Não é necessário ativar ou preparar a virtualenv. O próprio script valida os requisitos
+e executa o setup na primeira utilização ou quando os arquivos de dependências mudarem.
 
 <details>
 <summary><strong>O que o script verifica?</strong></summary>
 
-1. Lint com `ruff check`.
-2. Formatação com `ruff format --check`.
-3. Testes do backend com `pytest`.
-4. Build do frontend com `npm run build`.
+1. Setup e sincronização das dependências.
+2. Lint com `ruff check`.
+3. Formatação com `ruff format --check`.
+4. Testes do backend com `pytest`.
+5. Build do frontend com `npm run build`.
 
 As etapas são executadas em sequência e o script interrompe no primeiro erro.
 
@@ -163,6 +122,9 @@ As etapas são executadas em sequência e o script interrompe no primeiro erro.
 | `MAX_CONCURRENCY` | `10` |
 | `PROVIDER_BASE_URL` | `https://jsonplaceholder.typicode.com` |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` |
+| `REDIS_URL` | `redis://localhost:6379/0` |
+| `CACHE_TTL_SECONDS` | `300` |
+| `CACHE_TIMEOUT_SECONDS` | `0.5` |
 | `VITE_API_URL` | URL relativa |
 
 Os exemplos estão em `backend/.env.example` e `frontend/.env.example`.
@@ -172,16 +134,17 @@ Os exemplos estão em `backend/.env.example` e `frontend/.env.example`.
 ## Se precisasse consultar milhares de usuários
 
 A evolução seria incremental: processar IDs em lotes com limites globais de
-concorrência, priorizar um endpoint batch do provider e usar Redis ou PostgreSQL apenas
-quando cache, persistência ou rastreabilidade fossem necessários. Trabalhos longos
-iriam para uma fila com workers, retornando `job_id` e status por polling, SSE ou
-webhook. Também seriam considerados circuit breaker, paginação ou streaming, métricas
-e centralização dos logs estruturados.
+concorrência, priorizar um endpoint batch do provider e dimensionar o cache Redis já
+existente. PostgreSQL seria considerado apenas se surgisse necessidade de persistência
+ou rastreabilidade. Trabalhos longos iriam para uma fila com workers, retornando
+`job_id` e status por polling, SSE ou webhook. Também seriam considerados circuit
+breaker, paginação ou streaming, métricas e centralização dos logs estruturados.
 
 ## Limitações atuais
 
-O limite de concorrência é por request, o Compose é voltado ao desenvolvimento local e
-não há autenticação, cache, persistência, circuit breaker, processamento em background,
+O limite de concorrência é por request e o Compose é voltado ao desenvolvimento local.
+O cache não possui persistência, autenticação, prevenção de stampede ou invalidação além
+do TTL. Não há banco persistente, circuit breaker, processamento em background,
 métricas ou tracing.
 
 ## Uso de IA

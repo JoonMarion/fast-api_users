@@ -12,6 +12,9 @@ TEST_SETTINGS = Settings(
     max_concurrency=2,
     provider_base_url="https://provider.test",
     frontend_origin="https://frontend.test",
+    redis_url="redis://redis.test:6379/0",
+    cache_ttl_seconds=300,
+    cache_timeout_seconds=0.5,
 )
 
 

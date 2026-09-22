@@ -7,6 +7,12 @@ services:
       MAX_CONCURRENCY: ${MAX_CONCURRENCY:-10}
       PROVIDER_BASE_URL: ${PROVIDER_BASE_URL:-https://jsonplaceholder.typicode.com}
       PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-5}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-300}
+      CACHE_TIMEOUT_SECONDS: ${CACHE_TIMEOUT_SECONDS:-0.5}
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
 
@@ -19,3 +25,12 @@ services:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
       - "5173:5173"
+
+  redis:
+    image: redis:8.2.9-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
