@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,27 @@ def run_check(name: str, command: list[str], *, cwd: Path) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
+def run_backend_tests(python_path: Path) -> None:
+    with tempfile.TemporaryDirectory(
+        prefix="fast-api-users-check-",
+        ignore_cleanup_errors=True,
+    ) as temporary_directory:
+        temporary_root = Path(temporary_directory)
+        run_check(
+            "Backend tests",
+            [
+                str(python_path),
+                "-m",
+                "pytest",
+                "--basetemp",
+                str(temporary_root / "pytest"),
+                "-o",
+                f"cache_dir={temporary_root / 'cache'}",
+            ],
+            cwd=BACKEND_DIR,
+        )
+
+
 def main() -> int:
     try:
         python_path, npm = validate_project_setup()
@@ -60,8 +82,8 @@ def main() -> int:
         )
         return 1
 
-    checks = [
-        (
+    try:
+        run_check(
             "Ruff lint",
             [
                 str(python_path),
@@ -73,9 +95,9 @@ def main() -> int:
                 "backend",
                 "scripts",
             ],
-            PROJECT_ROOT,
-        ),
-        (
+            cwd=PROJECT_ROOT,
+        )
+        run_check(
             "Ruff format",
             [
                 str(python_path),
@@ -88,23 +110,14 @@ def main() -> int:
                 "backend",
                 "scripts",
             ],
-            PROJECT_ROOT,
-        ),
-        (
-            "Backend tests",
-            [str(python_path), "-m", "pytest"],
-            BACKEND_DIR,
-        ),
-        (
+            cwd=PROJECT_ROOT,
+        )
+        run_backend_tests(python_path)
+        run_check(
             "Frontend build",
             [npm, "run", "build"],
-            FRONTEND_DIR,
-        ),
-    ]
-
-    try:
-        for name, command, cwd in checks:
-            run_check(name, command, cwd=cwd)
+            cwd=FRONTEND_DIR,
+        )
     except subprocess.CalledProcessError as exc:
         print(f"\nCheck failed with exit code {exc.returncode}.", file=sys.stderr)
         return exc.returncode
